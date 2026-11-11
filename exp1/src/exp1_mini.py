@@ -68,14 +68,14 @@ def main():
     ax[0].stackplot(EPS_SCALES, Wg.T, labels=tick, step="post")
     ax[0].axhline(1, color="k", lw=.5)
     ax[0].set_xlabel("eps / eps0"); ax[0].set_ylabel("weight")
-    ax[0].set_title(f"Wasserstein, lambda={LAMBDA}: larger eps -> toward 1/N", fontsize=9)
-    for axi, Wm, ttl in ((ax[1], WA, "Poss-A (elliptical): weights barely change"),
-                         (ax[2], WB, "Poss-B (scenario): real trade-off")):
+    ax[0].set_title(f"Wasserstein (λ={LAMBDA}): weights vs eps/eps0", fontsize=9)
+    for axi, Wm, ttl in ((ax[1], WA, "Poss-A (elliptical): weights vs λ"),
+                         (ax[2], WB, "Poss-B (scenario LP): weights vs λ")):
         axi.stackplot(cfg.lambdas, Wm.T, step="post")
         axi.set_xlabel("lambda (0 = CVaR only, 1 = mean only)"); axi.set_title(ttl, fontsize=9)
     h, l = ax[0].get_legend_handles_labels()
     fig.legend(h, l, loc="lower center", ncol=9, fontsize=8, frameon=False)
-    fig.suptitle(f"Decision week {f['date'].date()}", fontsize=10)
+    fig.suptitle(f"Decision week {f['date'].date()}  (post-hoc)", fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     out = ROOT / "results" / tag / "fig_demo_weights.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
