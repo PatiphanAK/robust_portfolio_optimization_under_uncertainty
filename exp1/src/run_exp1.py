@@ -59,9 +59,8 @@ def main():
         R = D.synthetic_returns(cfg, n_weeks=a.weeks, seed=1)
         data_meta = {"source": "SYNTHETIC - pipeline test only"}
     else:
-        if a.download:
-            D.download_prices(cfg)
-        px = D.load_prices()
+        # validated prices; a bad cache is repaired, nothing incomplete is used or saved
+        px = D.ensure_prices(cfg, refresh=a.download)
         R = D.weekly_log_returns(px, cfg)
         mp = D.DATA_DIR / "prices_daily.meta.json"
         data_meta = json.loads(mp.read_text()) if mp.exists() else {}
