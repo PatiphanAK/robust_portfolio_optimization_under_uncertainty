@@ -59,9 +59,8 @@ def main():
         R = D.synthetic_returns(cfg, n_weeks=a.weeks, seed=1)
         data_meta = {"source": "SYNTHETIC - pipeline test only"}
     else:
-        if a.download:
-            D.download_prices(cfg)
-        px = D.load_prices()
+        # validated prices; a bad cache is repaired, nothing incomplete is used or saved
+        px = D.ensure_prices(cfg, refresh=a.download)
         R = D.weekly_log_returns(px, cfg)
         mp = D.DATA_DIR / "prices_daily.meta.json"
         data_meta = json.loads(mp.read_text()) if mp.exists() else {}
@@ -156,12 +155,18 @@ def main():
     fig, ax = plt.subplots(figsize=(6.4, 4.6))
     for m in fronts_main:
         P = 100 * fronts_main[m]
-        ax.plot(P[:, 0], P[:, 1], "o-", ms=3.5, label=f"{m} (HV {hv[m]:.3f})")
+        pts, = ax.plot(P[:, 0], P[:, 1], "o", ms=3.5, label=f"{m} (HV {hv[m]:.3f})")
+        ND = M.nondominated(P)
+        ND = ND[np.argsort(ND[:, 0])]
+        ax.plot(ND[:, 0], ND[:, 1], "-", lw=1.2, color=pts.get_color())
     p1n = 100 * M.oos_front(rets["1/N"]["gross"][:, :1], cfg.alpha)[0]
     ax.plot(*p1n, "k*", ms=12, label="1/N")
-    ax.set_xlabel("Realised mean weekly loss (%)"); ax.set_ylabel(f"Realised CVaR {cfg.alpha:.0%} (%)")
+    ax.set_xlabel("Realised mean weekly loss (%)", fontsize=11)
+    ax.set_ylabel(f"Realised CVaR {cfg.alpha:.0%} (%)", fontsize=11)
     ax.set_title("Out-of-sample fronts (lambda = 0 ... 1)")
-    ax.legend(fontsize=7); fig.tight_layout(); fig.savefig(out / "fig_oos_front.png", dpi=200)
+    ax.legend(fontsize=9)
+    fig.text(0.5, 0.01, "points = λ 0…1; line = non-dominated points", ha="center", fontsize=9)
+    fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(out / "fig_oos_front.png", dpi=200)
 
     fig, ax = plt.subplots(figsize=(6.4, 3.8))
     for m in main_names:
