@@ -35,7 +35,8 @@ def run_backtest(R: pd.DataFrame, fc: list, cfg: Config, cache: Path | None = No
     T = len(fc)
     W = {m: np.full((T, len(lams), d), np.nan) for m in names}
     eps0 = np.full(T, np.nan); kE = np.full(T, np.nan); kC = np.full(T, np.nan)
-    bad = {m: 0 for m in names}
+    bad = {m: 0 for m in names}          # failed solves -> previous weights reused
+    inacc = {m: 0 for m in names}        # accepted but flagged optimal_inaccurate
     t0 = time.time()
     for k, f in enumerate(fc):
         Z = f["Z"]
@@ -54,6 +55,7 @@ def run_backtest(R: pd.DataFrame, fc: list, cfg: Config, cache: Path | None = No
             nw.set_data(Rsc, f["sigma"], eps)
             for j, lam in enumerate(lams):
                 w, st = nw.solve(lam)
+                inacc[name] += st == "optimal_inaccurate"
                 if w is None or st not in ("optimal", "optimal_inaccurate"):
                     bad[name] += 1; w = W[name][k - 1, j] if k else np.ones(d) / d
                 W[name][k, j] = clean(w)
@@ -62,6 +64,7 @@ def run_backtest(R: pd.DataFrame, fc: list, cfg: Config, cache: Path | None = No
         for name, mdl in (("Poss-A", pa), ("Poss-B", pb)):
             for j, lam in enumerate(lams):
                 w, st = mdl.solve(lam)
+                inacc[name] += st == "optimal_inaccurate"
                 if w is None or st not in ("optimal", "optimal_inaccurate"):
                     bad[name] += 1; w = W[name][k - 1, j] if k else np.ones(d) / d
                 W[name][k, j] = clean(w)
@@ -71,7 +74,8 @@ def run_backtest(R: pd.DataFrame, fc: list, cfg: Config, cache: Path | None = No
                   f"  {el:.0f}s elapsed, ~{el/(k+1)*(T-k-1)/60:.1f} min left", flush=True)
     info = {"names": names, "lambdas": lams, "dates": [f["date"] for f in fc],
             "eval_dates": [R.index[f["i"] + 1] for f in fc], "eps0": eps0, "kE": kE, "kC": kC,
-            "bad_solves": bad, "N": N, "d": d}
+            "bad_solves": bad, "inaccurate_solves": inacc,
+            "solves_per_model": T * len(lams), "N": N, "d": d}
     if cache is not None:
         np.savez_compressed(cache, W=np.array(W, dtype=object), info=np.array(info, dtype=object))
     return W, info
