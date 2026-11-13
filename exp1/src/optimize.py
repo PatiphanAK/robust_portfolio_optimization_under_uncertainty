@@ -140,3 +140,52 @@ def objectives_fixed_w(model, w, *, Rsc, sigma=None, alpha=0.05, eps=0.0, mu=Non
         # minimax equality: min_eta max_p = max_p min_eta (convex-concave, compact p set)
         return f1, min(vals)
     raise ValueError(model)
+
+
+# ------------------------------------------------ numerical convexity check (Hessian)
+def numerical_hessian(f, x, h=1e-4):
+    """Central-difference Hessian of a scalar function f: R^d -> R at x (symmetrised).
+
+    Step is relative to |x_i| so the check is scale-aware.
+    """
+    x = np.asarray(x, float)
+    d = x.size
+    hs = h * np.maximum(1.0, np.abs(x))
+    H = np.empty((d, d))
+    f0 = f(x)
+    for i in range(d):
+        ei = np.zeros(d); ei[i] = hs[i]
+        H[i, i] = (f(x + ei) - 2 * f0 + f(x - ei)) / hs[i] ** 2
+        for j in range(i + 1, d):
+            ej = np.zeros(d); ej[j] = hs[j]
+            H[i, j] = H[j, i] = (f(x + ei + ej) - f(x + ei - ej)
+                                 - f(x - ei + ej) + f(x - ei - ej)) / (4 * hs[i] * hs[j])
+    return 0.5 * (H + H.T)
+
+
+def is_conv_func(f, points, h=1e-4, tol=1e-6, return_info=False):
+    """Numerical convexity check: Hessian PSD at every test point.
+
+    f       : callable R^d -> R
+    points  : (d,) or (n, d) array of test points (interior of the domain)
+    tol     : relative tolerance; a point passes if
+              lambda_min(H) >= -tol * max(1, |lambda_max(H)|)
+    Returns True/False, or (bool, info) with per-point lambda_min if return_info.
+
+    This is a necessary-condition check (sampling cannot prove convexity), and
+    for nonsmooth f (CVaR, norms) it only probes the smooth pieces plus any kink
+    straddled by the finite-difference stencil; a convex kink adds a positive
+    contribution, so convex functions still pass.
+    """
+    P = np.atleast_2d(np.asarray(points, float))
+    lam_min = np.empty(len(P))
+    ok = np.empty(len(P), bool)
+    for k, x in enumerate(P):
+        eig = np.linalg.eigvalsh(numerical_hessian(f, x, h))
+        lam_min[k] = eig[0]
+        ok[k] = eig[0] >= -tol * max(1.0, np.abs(eig).max())
+    res = bool(ok.all())
+    if return_info:
+        return res, {"lambda_min": lam_min, "ok": ok,
+                     "worst_point": P[int(np.argmin(lam_min))]}
+    return res

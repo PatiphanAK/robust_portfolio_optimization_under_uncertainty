@@ -10,7 +10,7 @@ from config import CFG
 import data as D
 from forecast import run_forecasts
 from ambiguity import kappas_elliptical, possibility_cuts, eps_base
-from optimize import NominalWass, PossA, PossB, objectives_fixed_w, emp_cvar, clean
+from optimize import NominalWass, PossA, PossB, objectives_fixed_w, emp_cvar, clean, is_conv_func
 import metrics as M
 
 rng = np.random.default_rng(0)
@@ -102,6 +102,18 @@ for _ in range(300):
     e = rng.multivariate_normal([0.002, 0.002], [[4e-4, 3e-4], [3e-4, 4e-4]], 400)
     rej += M.sharpe_diff_test(e[:, 0], e[:, 1])[1] < 0.05
 check("Sharpe test size ~5% under H0", 0.02 <= rej / 300 <= 0.09, f"{rej/300:.3f}")
+
+# 9. convexity of objectives via numerical Hessian (PSD at random simplex points)
+P = rng.dirichlet(np.ones(d), 5)
+check("is_conv_func sanity: ||w||^2 convex, -||w||^2 not",
+      is_conv_func(lambda v: v @ v, P) and not is_conv_func(lambda v: -(v @ v), P))
+for k, name in ((0, "F1"), (1, "F2")):
+    fw = lambda v, k=k: objectives_fixed_w("wass", v, Rsc=Rsc, sigma=sig, alpha=alpha, eps=0.3)[k]
+    ok, info = is_conv_func(fw, P, return_info=True)
+    check(f"Wass {name} convex (Hessian PSD)", ok, f"min eig {info['lambda_min'].min():.2e}")
+    fa = lambda v, k=k: objectives_fixed_w("possA", v, Rsc=Rsc, sigma=sig, mu=mu, S=S, kE=kE, kC=kC)[k]
+    ok, info = is_conv_func(fa, P, return_info=True)
+    check(f"Poss-A {name} convex (Hessian PSD)", ok, f"min eig {info['lambda_min'].min():.2e}")
 
 print("\nALL PASS" if ok_all else "\nSOME CHECKS FAILED")
 sys.exit(0 if ok_all else 1)
