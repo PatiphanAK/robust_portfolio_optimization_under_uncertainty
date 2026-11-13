@@ -12,6 +12,7 @@ cd exp1
 git init && git add -A && git commit -m "Exp1 config frozen before OOS run"   # 1) ล็อก config ก่อนเห็นผล
 cd src
 python tests.py                   # 2) ต้องขึ้น ALL PASS
+python verification/run_all.py    #    ตรวจอัลกอริทึมเพิ่ม (~10 วินาที) ต้องขึ้น ALL PASS
 python run_exp1.py --download     # 3) ดึงข้อมูล Yahoo + รันทั้งหมด (~20 นาที)
 python exp1_mini.py               # 4) รูป demo (ใช้ cache, ~30 วินาที)
 ```
@@ -45,4 +46,8 @@ python exp1_mini.py               # 4) รูป demo (ใช้ cache, ~30 ว�
 - `optimize.py` ปัญหาทั้ง 4 แบบใน CVXPY (DPP, compile ครั้งเดียว)
 - `backtest.py` rolling-origin, ผลตอบแทนจริง, turnover, ต้นทุน
 - `metrics.py` Sharpe/MDD/CVaR, Hypervolume 2 มิติ, bootstrap CI, Ledoit–Wolf HAC, Holm
-- `tests.py` ตรวจความถูกต้อง 7 กลุ่ม
+- `tests.py` ตรวจความถูกต้อง 9 กลุ่ม (รวม convexity ผ่าน Hessian)
+- `verification/` ชุดตรวจอัลกอริทึม (`run_all.py` รันทั้งหมด)
+  - `check_optimizer.py` optimum ระดับ global, Pareto front monotone ใน λ, Poss-A ทุก λ, ผลของ ridge
+  - `check_robust.py` สูตร Wasserstein tight (มีการแจกแจงที่ถึงค่า) และเป็น upper bound, α-cut ซ้อนกัน, κ
+  - `check_backtest.py` จังหวะผลตอบแทน (i→i+1), turnover/ต้นทุนเทียบมือ, backtest ย่อ + look-ahead

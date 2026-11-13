@@ -73,6 +73,12 @@ def main():
     W, info = run_backtest(R, fc, cfg, cache=cache / f"weights_{cfg.fingerprint()}.npz",
                            appendix=not a.no_appendix)
     print("   bad solves:", info["bad_solves"])
+    n_sol = info.get("solves_per_model")
+    for m, nb in info["bad_solves"].items():
+        ni = info.get("inaccurate_solves", {}).get(m, 0)
+        if nb or ni:
+            print(f"   WARNING {m}: {nb} failed (previous weights reused), {ni} optimal_inaccurate"
+                  + (f" of {n_sol} solves" if n_sol else ""))
 
     # ------------------------------------------------------------ evaluation
     print("[3/3] evaluation")
@@ -189,6 +195,7 @@ def main():
             "weeks": int(R.shape[0]), "decisions": len(fc),
             "oos_first": str(edates[0].date()), "oos_last": str(edates[-1].date()),
             "scenarios_N": info["N"], "bad_solves": info["bad_solves"],
+            "inaccurate_solves": info.get("inaccurate_solves"),
             "hv_norm_lo": lo.tolist(), "hv_norm_span": span.tolist()}
     (out / "run_meta.json").write_text(json.dumps(meta, indent=2, default=str))
     pd.set_option("display.width", 200)
